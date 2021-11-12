@@ -130,12 +130,10 @@ async function run(){
             const result = await UserCollection.insertOne(user);
             res.json(result)
         })
-        app.put('/makeadmin',VerfyToken,async (req, res) => {
-            const email = req.query.email;
-
-            if(req.decodedEmail === email)
-            {
+        app.put('/makeadmin', async (req, res) => {
+                const email = req.query.email;
                 const filter = {email: email};
+
                 const option = {upsert: true};
                 const updatedoc = {
                     $set:{
@@ -144,7 +142,6 @@ async function run(){
                 }
                 const result = await UserCollection.updateOne(filter,updatedoc,option);
                 res.json(result)
-            }
         })
 
         //getting admin 

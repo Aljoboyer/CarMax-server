@@ -177,26 +177,19 @@ async function run(){
             const option = {upsert: true};
             const updatedoc={
                 $set:{
-                    status: 'Approved'
+                    status: 'Shipped'
                 }
             }
             const result = await OrderCollection.updateOne(query, updatedoc, option)
             res.json(result)
         })
 
-         //rejecting order 
-         app.put('/reject', async (req, res) => {
-            const id = req.query.id;
-            const newstatus = req.body;
+         //delete order 
+         app.delete('/deleteorder/:id', async (req, res) => {
+            const id = req.params.id;
             const query = {_id: ObjectId(id)};
-            const option = {upsert: true};
-            const updatedoc={
-                $set:{
-                    status: 'Rejected'
-                }
-            }
-            const result = await OrderCollection.updateOne(query, updatedoc, option)
-            res.json(result)
+            const result = await OrderCollection.deleteOne(query);
+            res.send(result)
         })
 
         //review get api

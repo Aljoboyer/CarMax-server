@@ -4,9 +4,10 @@ const cors = require('cors');
 const admin = require("firebase-admin");
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
-const port = process.env.PORT || 5000;
+const fileUpload = require('express-fileupload');
 const ObjectId = require('mongodb').ObjectId;
-
+const stripe = require('stripe')(process.env.STRIPE_SECRET)
+const port = process.env.PORT || 5000;
 //firebase admin
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
@@ -17,6 +18,7 @@ admin.initializeApp({
 //middle ware
 app.use(cors());
 app.use(express.json());
+app.use(fileUpload());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.obwta.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -66,8 +68,13 @@ async function run(){
             })
         })
         app.post('/carmodels', async (req,res) => {
-            const data = req.body;
-            const result = await CarmodelCollection.insertOne(data);
+            const cardata = req.body
+            const picture = req.files.img.data;
+            const encodedpic = picture.toString('base64');
+            const imgBuffer = Buffer.from(encodedpic, 'base64');
+
+            const car = {...cardata, imgBuffer}
+            const result = await CarmodelCollection.insertOne(car);
             res.json(result)
         })
         //geting car for main colloction
@@ -195,6 +202,53 @@ async function run(){
             const result = await cursor.toArray();
             res.send(result)
         })
+
+    //payment system 
+
+    //geting payment order id
+    app.get('/paymentorder/:id' , async (req, res) => {
+        const id = req.params.id
+        const query = {_id: ObjectId(id)}
+        const result = await OrderCollection.findOne(query)
+        res.send(result)
+    })
+    //payment intent
+    app.post('/create-payment-intent', async (req, res) => {
+        const paymentinfo = req.body
+        const payment = parseInt(paymentinfo.price) * 100;
+        const paymentIntent = await stripe.paymentIntents.create({
+            currency: 'usd',
+            amount: payment,
+            payment_method_types: ['card']
+          });
+        res.send({
+        clientSecret: paymentIntent.client_secret
+        });
+    })
+    //updating payment data
+    app.put('/paymentdataupdating/:id', async (req, res) => {
+        const id = req.params.id;
+        const payment = req.body;
+        console.log('id', id);
+        console.log('this', payment)
+        const filter = {_id: ObjectId(id)};
+        const option = {upsert: true};
+        const updatedoc = {
+            $set: {
+                payment: payment
+            }
+        }
+        const result = await OrderCollection.updateOne(filter, updatedoc, option);
+        res.json(result)
+    })
+
+    //shop by brand
+    app.get('/shopbybrand', async ( req, res ) => {
+        const brand = req.query.brand;
+        const query = {brand: brand};
+        const result = await CarmodelCollection.find(query).toArray();
+        res.send(result)
+    })
     }
     finally{
         
